@@ -49,15 +49,9 @@ SNOWFLAKE_CONN_ID = "snowflake_raw_conn"
 )
 def rls_commission_log():
     SQLExecuteQueryOperator(
-        task_id="build_new_contracts_table",
+        task_id="build_commission_table",
         conn_id=SNOWFLAKE_CONN_ID,
         sql=["regional_leasing_specialist_commission_program.sql"],
-    )
-
-    SQLExecuteQueryOperator(
-        task_id="build_renewals_table",
-        conn_id=SNOWFLAKE_CONN_ID,
-        sql=["regional_leasing_specialist_commission_program_renewals.sql"],
     )
 
 
