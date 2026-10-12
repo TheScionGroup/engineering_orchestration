@@ -15,23 +15,23 @@ from pendulum import datetime
     catchup=False,
     doc_md=__doc__,
     default_args={"owner": "data-eng", "retries": 0},
-    template_searchpath="/usr/local/airflow/include",
+    template_searchpath="/usr/local/airflow/include/regional_leasing_specialist_commission_program",
 )
 def regional_leasing_specialist_commission_program():
 
-    create_regional_leasing_specialist_commission_program = SQLExecuteQueryOperator(
-        task_id="create_regional_leasing_specialist_commission_program",
+    create_target = SQLExecuteQueryOperator(
+        task_id="create_target",
         conn_id="snowflake",
-        sql=["regional_leasing_specialist_commission_program/create.sql"],
+        sql="create.sql",
     )
 
-    refresh_regional_leasing_specialist_commission_program = SQLExecuteQueryOperator(
-        task_id="refresh_regional_leasing_specialist_commission_program",
+    refresh_target = SQLExecuteQueryOperator(
+        task_id="refresh_target",
         conn_id="snowflake",
-        sql=["regional_leasing_specialist_commission_program/refresh.sql"],
+        sql="refresh.sql",
     )
 
-    create_regional_leasing_specialist_commission_program >> refresh_regional_leasing_specialist_commission_program
+    create_target >> refresh_target
 
 
 regional_leasing_specialist_commission_program()
