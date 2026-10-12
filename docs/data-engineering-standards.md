@@ -2,17 +2,6 @@
 
 Response to [#13](https://github.com/TheScionGroup/engineering_orchestration/issues/13). The warehouse ([si-dw](https://github.com/TheScionGroup/si-dw)) has been built up without a shared set of conventions. These rules are binding for all new work in [engineering_orchestration](https://github.com/TheScionGroup/engineering_orchestration) (an Astro/Airflow project — DAGs in [`dags/`](https://github.com/TheScionGroup/engineering_orchestration/tree/main/dags), SQL in [`include/`](https://github.com/TheScionGroup/engineering_orchestration/tree/main/include)) and in [si-dw](https://github.com/TheScionGroup/si-dw).
 
-## Database & environment structure
-
-Six databases, one per layer × environment: `bronze_test`, `bronze_prod`, `silver_test`, `silver_prod`, `gold_test`, `gold_prod`. Layer and environment are both expressed at the database level, not folded into a schema name or a dbt target suffix.
-
-**Within bronze, every source system gets its own schema** — e.g. `bronze_prod.scion_intelligence`, `bronze_prod.entrata_api`, `bronze_prod.rate_scraper`, `bronze_prod.college_house`, `bronze_prod.greenhouse` — mirrored identically in `bronze_test`. This rule is scoped to bronze; silver stays organized around reusable staging models, not source systems (see Silver-layer tables below), and gold is organized around dimensions and facts (see Gold-layer tables above), not by source.
-
-Current state: a single `RAW` database already does roughly this — about 40 schemas, each one a source system (`SCION_INTELLIGENCE`, `RATE_SCRAPER`, `COLLEGE_HOUSE`, `GREENHOUSE`, `QUALTRICS`, `UKG`, and more). The schema-per-source pattern is mostly already in place; what's missing to reach the target structure:
-- **No test/prod split at all today.** One `RAW` database does double duty for every environment, alongside a grab-bag of individual-developer databases (`DBT_JTATE`, `DBT_DHUSSAIN`, `DBT_PTANNER`, `DBT_TREDENCE`) and a shared `SANDBOX` database standing in for what should be a dedicated `bronze_test` (and `silver_test`/`gold_test`).
-- **Silver and gold are schemas inside one `ANALYTICS` database (`TRANSFORM` and `PUBLIC`) today, not their own databases.** Migrating means `silver_prod` and `gold_prod` become top-level databases, not schemas nested under `ANALYTICS`.
-- **The schema-per-source rule is already being violated in one concrete place.** Entrata's data is split across three separate schemas today — `ENTRATA`, `ENTRATA_API`, and `ENTRATA_DELETED` — instead of one `entrata` schema. Decide whether to consolidate these when migrating into `bronze_prod` rather than carrying the split forward.
-
 ## Gold-layer tables
 
 - **One DAG for all dimensions, named `dimensions`. One DAG for all facts, named `facts`.** Both live in this repository's [`dags/`](https://github.com/TheScionGroup/engineering_orchestration/tree/main/dags) alongside the existing DAGs here (e.g. `raw_static`). Dimension and fact models are not scattered across per-domain DAGs.
@@ -94,3 +83,14 @@ Silver = [`models/transform`](https://github.com/TheScionGroup/si-dw/tree/master
 ## Why these rules, concretely
 
 [Issue #11 — Create Property Dimension](https://github.com/TheScionGroup/engineering_orchestration/issues/11) traces real violations of these rules against the current warehouse and should be read alongside this one: the `property_id`/`si_property_id`/`chainscale_property_id` naming collision, a meaningless `property_key` surrogate, 17 staff-assignment columns and address fields that don't belong on a property dimension, and several vendor-ID columns (`coupa_id`, `concur_id`, `g4_id`) that don't exist anywhere in the warehouse at all.
+
+## Database & environment structure
+
+Six databases, one per layer × environment: `bronze_test`, `bronze_prod`, `silver_test`, `silver_prod`, `gold_test`, `gold_prod`. Layer and environment are both expressed at the database level, not folded into a schema name or a dbt target suffix.
+
+**Within bronze, every source system gets its own schema** — e.g. `bronze_prod.scion_intelligence`, `bronze_prod.entrata_api`, `bronze_prod.rate_scraper`, `bronze_prod.college_house`, `bronze_prod.greenhouse` — mirrored identically in `bronze_test`. This rule is scoped to bronze; silver stays organized around reusable staging models, not source systems (see Silver-layer tables above), and gold is organized around dimensions and facts (see Gold-layer tables above), not by source.
+
+Current state: a single `RAW` database already does roughly this — about 40 schemas, each one a source system (`SCION_INTELLIGENCE`, `RATE_SCRAPER`, `COLLEGE_HOUSE`, `GREENHOUSE`, `QUALTRICS`, `UKG`, and more). The schema-per-source pattern is mostly already in place; what's missing to reach the target structure:
+- **No test/prod split at all today.** One `RAW` database does double duty for every environment, alongside a grab-bag of individual-developer databases (`DBT_JTATE`, `DBT_DHUSSAIN`, `DBT_PTANNER`, `DBT_TREDENCE`) and a shared `SANDBOX` database standing in for what should be a dedicated `bronze_test` (and `silver_test`/`gold_test`).
+- **Silver and gold are schemas inside one `ANALYTICS` database (`TRANSFORM` and `PUBLIC`) today, not their own databases.** Migrating means `silver_prod` and `gold_prod` become top-level databases, not schemas nested under `ANALYTICS`.
+- **The schema-per-source rule is already being violated in one concrete place.** Entrata's data is split across three separate schemas today — `ENTRATA`, `ENTRATA_API`, and `ENTRATA_DELETED` — instead of one `entrata` schema. Decide whether to consolidate these when migrating into `bronze_prod` rather than carrying the split forward.
