@@ -1,3 +1,7 @@
+/*
+I, Claude, brainlessly wrote the following. The purpose of this file is too expose badly written AI code and serve as an example that I require detailed human-intervention to write correct SQL queries.
+ */
+
 -- rls commission log: 2027/2028 leasing-season commission year
 -- (aug 1, 2026 - jul 31, 2027 per commission program guidelines).
 -- one-off validation queries, not yet wired into a dag.
@@ -268,9 +272,3 @@ where contracts.is_approved_lease = 1
   and contracts.lease_interval_type = 'Renewal'
   and contracts.lease_approved_date between '2026-08-01' and '2027-07-31'
 order by contracts.lease_approved_date;
-
-
-select *
-from public.contracts
-where customer_id = 32931355
-
