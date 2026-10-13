@@ -12,22 +12,21 @@ Response to [#13](https://github.com/TheScionGroup/engineering_orchestration/iss
 - **A full-refresh table uses `TRUNCATE` + `INSERT`, never `DROP` + `CREATE`.** `TRUNCATE` clears the rows but keeps the same table object, so Snowflake's query-optimizer statistics (column min/max, distinct-value estimates, micro-partition pruning metadata), any clustering key, and any search optimization configuration all carry forward and get refreshed against the new data automatically. `DROP` + `CREATE` destroys that object and replaces it with a brand-new one that starts with none of that — and because grants are attached to the object, not the table name, every privilege granted on the table is lost and must be manually reapplied on every single run. This isn't hypothetical: `analytics.public.dim_properties` currently has `SELECT` granted to six roles (`ACCOUNTING`, `ANALYST`, `ETLWORKS`, `LOOKER_ROLE`, `OMNI_POC_ROLE`, `STAFF_STREAMLINE`) — a `DROP`/`CREATE`-based refresh would silently break all six downstream consumers' access until someone noticed and re-granted them. The table-level and column-level comments required above would also need to be reapplied in full on every run instead of being set once by `create_<table_name>`.
 - **Gold-layer tables must be self-sufficient.** No consumer of a gold table should ever need to join back to silver or raw to get what they need. If that happens, it means a data engineer needs to engineer the missing data into the appropriate gold table — not leave it for the consumer to patch over with an upstream join.
 
+## Silver-layer tables
+
+Silver = [`models/transform`](https://github.com/TheScionGroup/si-dw/tree/master/models/transform) in [si-dw](https://github.com/TheScionGroup/si-dw). This layer is a staging area, nothing more. A model belongs here only if it materializes an intermediate result that multiple downstream gold-layer models actually reuse. Logic needed by exactly one gold table does not get promoted to its own silver model — it stays inline in that gold model (or a private CTE within it).
+
 ## Bronze-layer tables
 
 This layer is nothing more than replicated raw data, no transformation.
 
 Do not use listeners (webhooks, change-data-capture event streams, or similar push-based ingestion) for bronze-layer tables. Use batch or incremental pulls. The only exception is a source API that offers no viable batch or incremental extraction path — document that exception at the model level when it applies.
 
-## Silver-layer tables
-
-Silver = [`models/transform`](https://github.com/TheScionGroup/si-dw/tree/master/models/transform) in [si-dw](https://github.com/TheScionGroup/si-dw). This layer is a staging area, nothing more. A model belongs here only if it materializes an intermediate result that multiple downstream gold-layer models actually reuse. Logic needed by exactly one gold table does not get promoted to its own silver model — it stays inline in that gold model (or a private CTE within it).
-
 ## SQL style
 
 - Block comments use a single `/* */` block, not stacked `--` lines. `/*` and `*/` each alone on their own line, one point per indented line in between, no leading `*` per line. Don't split one explanation into multiple adjacent `/* */` blocks — fold extra points into the same block.
 - Don't use a CTE (or subquery) purely for readability/structuring or to avoid a top-level `distinct`. Only reach for one when it provides a real optimization — e.g. deduping/aggregating a fanned-out table down to the right grain *before* a join, so the join itself never produces extra rows.
 - When a table has a dedicated DDL file, write inserts into it as plain `insert into <table> select ...` — no explicit column list. The DDL is the source of truth for column order; don't duplicate it.
-- Keep an `in (...)` value list on one line rather than spreading each value across its own line.
 - Prefer `property_id` over `property_key` when joining/partitioning/grouping on a property in `analytics.public.contracts` (or similarly-keyed tables) — they're in a strict 1:1 relationship, and `property_id` (NUMBER) is cheaper to partition on than `property_key` (TEXT hash). If `property_key` is genuinely required, add an inline comment explaining why.
 - Don't leave commented-out single-case debug filters (e.g. `--and contracts.application_id = 12345`) in a production query file. Move them into the matching query in a `test_queries.sql` file instead.
 - Do not alias tables. Qualify every column reference with the full table name, and always specify the table name in a `select`, even for a single-table query. E.g. `select * from public.dim_property where dim_property.entrata_property_id is not null`, not `select * from public.dim_property dp where dp.entrata_property_id is not null`.
